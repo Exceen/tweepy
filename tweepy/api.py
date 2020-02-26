@@ -407,16 +407,46 @@ class API(object):
             require_auth=True
         )
 
-    @property
     def direct_messages(self):
         """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/get-messages
-            :allowed_param:'since_id', 'max_id', 'count', 'full_text'
+            :allowed_param:'count'
+        """
+        direct_messages = []
+        next_cursor = None
+
+        while True:
+            if next_cursor is not None:
+                direct_messages = self.internal_direct_messages(cursor=next_cursor, count=50)
+            else:
+                direct_messages = self.internal_direct_messages(count=50)
+
+                dms = []
+                for item in direct_messages:
+                    for event in item.events:
+                        dms.append(event)
+
+                prepared_dms = []
+                prepared_ids = []
+
+                for dm in dms:
+                    if dm['id'] not in prepared_ids:
+                        prepared_ids.append(dm['id'])
+                        prepared_dms.append(dm)
+
+                return prepared_dms
+                #return [item for item in direct_messages]
+
+
+    @property
+    def internal_direct_messages(self):
+        """ :reference: https://developer.twitter.com/en/docs/direct-messages/sending-and-receiving/api-reference/get-messages
+            :allowed_param:'cursor', 'count'
         """
         return bind_api(
             api=self,
-            path='/direct_messages.json',
+            path='/direct_messages/events/list.json',
             payload_type='direct_message', payload_list=True,
-            allowed_param=['since_id', 'max_id', 'count', 'full_text'],
+            allowed_param=['cursor', 'count'],
             require_auth=True
         )
 
@@ -506,9 +536,9 @@ class API(object):
         """
         return bind_api(
             api=self,
-            path='/direct_messages/destroy.json',
-            method='POST',
-            payload_type='direct_message',
+            path='/direct_messages/events/destroy.json',
+            method='DELETE',
+            #payload_type='direct_message',
             allowed_param=['id'],
             require_auth=True
         )
